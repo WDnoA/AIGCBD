@@ -1,0 +1,106 @@
+2026-09-23 00:45:27 [wechatauto] [DEBUG] [db.py:1426]  WAL 合并第 1 次失败：PermissionError(13, '另一个程序正在使用此文件，进程无法访问。')
+2026-09-23 00:45:28 [wechatauto] [DEBUG] [db.py:1426]  WAL 合并第 3 次失败：FileNotFoundError(2, 'No such file or directory')
+2026-09-23 00:45:28 [wechatauto] [WARNING] [db.py:1430]  WAL 合并失败（微信持续写入），改用仅主库快照（可能缺少最近消息）: message\message_0.db
+2026-09-23 00:45:36 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 1/4 次）: message\message_0.db
+2026-09-23 00:45:36 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 1/4 次）: message\message_0.db
+2026-09-23 00:45:37 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 2/4 次）: message\message_0.db
+2026-09-23 00:45:37 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 2/4 次）: message\message_0.db
+2026-09-23 00:45:38 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 3/4 次）: message\message_0.db
+2026-09-23 00:45:38 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 3/4 次）: message\message_0.db
+2026-09-23 00:45:38 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 4/4 次）: message\message_0.db
+2026-09-23 00:45:39 [wechatauto] [WARNING] [db.py:1407]  主库持续处于撕裂状态，改用上一份可用副本（可能略旧）: message\message_0.db
+2026-09-23 00:45:39 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 4/4 次）: message\message_0.db
+2026-09-23 00:45:40 [wechatauto] [WARNING] [db.py:1407]  主库持续处于撕裂状态，改用上一份可用副本（可能略旧）: message\message_0.db
+2026-09-23 00:45:40 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 1/4 次）: message\message_0.db
+2026-09-23 00:45:40 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 1/4 次）: message\message_0.db
+2026-09-23 00:45:41 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 2/4 次）: message\message_0.db
+2026-09-23 00:45:41 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 2/4 次）: message\message_0.db
+2026-09-23 00:45:41 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 3/4 次）: message\message_0.db
+2026-09-23 00:45:42 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 3/4 次）: message\message_0.db
+2026-09-23 00:45:42 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 4/4 次）: message\message_0.db
+2026-09-23 00:45:43 [wechatauto] [WARNING] [db.py:1407]  主库持续处于撕裂状态，改用上一份可用副本（可能略旧）: message\message_0.db
+2026-09-23 00:45:44 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 1/4 次）: message\message_0.db
+2026-09-23 00:45:45 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 1/4 次）: message\message_0.db
+2026-09-23 00:45:45 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 2/4 次）: message\message_0.db
+2026-09-23 00:45:45 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 2/4 次）: message\message_0.db
+2026-09-23 00:45:46 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 3/4 次）: message\message_0.db
+2026-09-23 00:45:46 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 3/4 次）: message\message_0.db
+2026-09-23 00:45:47 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 4/4 次）: message\message_0.db
+2026-09-23 00:45:47 [wechatauto] [WARNING] [db.py:1407]  主库持续处于撕裂状态，改用上一份可用副本（可能略旧）: message\message_0.db
+2026-09-23 00:45:48 [wechatauto] [DEBUG] [db.py:1426]  WAL 合并第 1 次失败：PermissionError(13, '拒绝访问。')
+2026-09-23 00:45:48 [wechatauto] [WARNING] [db.py:1430]  WAL 合并失败（微信持续写入），改用仅主库快照（可能缺少最近消息）: message\message_0.db
+2026-09-23 00:45:50 [wechatauto] [DEBUG] [db.py:1426]  WAL 合并第 1 次失败：PermissionError(13, '另一个程序正在使用此文件，进程无法访问。')
+2026-09-23 00:45:51 [wechatauto] [WARNING] [db.py:1430]  WAL 合并失败（微信持续写入），改用仅主库快照（可能缺少最近消息）: message\message_0.db
+2026-09-23 00:53:22 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 1/4 次）: message\message_0.db
+2026-09-23 00:53:22 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 1/4 次）: message\message_0.db
+2026-09-23 00:53:23 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 2/4 次）: message\message_0.db
+2026-09-23 00:53:23 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 2/4 次）: message\message_0.db
+2026-09-23 00:53:24 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 3/4 次）: message\message_0.db
+2026-09-23 00:53:24 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 3/4 次）: message\message_0.db
+2026-09-23 00:53:24 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 4/4 次）: message\message_0.db
+2026-09-23 00:53:25 [wechatauto] [WARNING] [db.py:1407]  主库持续处于撕裂状态，改用上一份可用副本（可能略旧）: message\message_0.db
+2026-09-23 00:53:26 [wechatauto] [WARNING] [db.py:1430]  WAL 合并失败（微信持续写入），改用仅主库快照（可能缺少最近消息）: message\message_0.db
+2026-09-23 00:53:32 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 1/4 次）: message\message_0.db
+2026-09-23 00:53:33 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 1/4 次）: message\message_0.db
+2026-09-23 00:53:33 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 2/4 次）: message\message_0.db
+2026-09-23 00:53:34 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 2/4 次）: message\message_0.db
+2026-09-23 00:53:34 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 3/4 次）: message\message_0.db
+2026-09-23 00:53:34 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 3/4 次）: message\message_0.db
+2026-09-23 00:53:35 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 4/4 次）: message\message_0.db
+2026-09-23 00:53:35 [wechatauto] [WARNING] [db.py:1407]  主库持续处于撕裂状态，改用上一份可用副本（可能略旧）: message\message_0.db
+2026-09-23 00:53:35 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 4/4 次）: message\message_0.db
+2026-09-23 00:53:36 [wechatauto] [WARNING] [db.py:1407]  主库持续处于撕裂状态，改用上一份可用副本（可能略旧）: message\message_0.db
+2026-09-23 00:53:37 [wechatauto] [WARNING] [db.py:1430]  WAL 合并失败（微信持续写入），改用仅主库快照（可能缺少最近消息）: message\message_0.db
+2026-09-23 00:53:40 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 1/4 次）: message\message_0.db
+2026-09-23 00:53:41 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 1/4 次）: message\message_0.db
+2026-09-23 00:53:41 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 2/4 次）: message\message_0.db
+2026-09-23 00:53:42 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 2/4 次）: message\message_0.db
+2026-09-23 00:53:42 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 3/4 次）: message\message_0.db
+2026-09-23 00:53:42 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 3/4 次）: message\message_0.db
+2026-09-23 00:53:43 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 4/4 次）: message\message_0.db
+2026-09-23 00:53:43 [wechatauto] [WARNING] [db.py:1407]  主库持续处于撕裂状态，改用上一份可用副本（可能略旧）: message\message_0.db
+2026-09-23 00:53:44 [wechatauto] [WARNING] [db.py:1430]  WAL 合并失败（微信持续写入），改用仅主库快照（可能缺少最近消息）: message\message_0.db
+2026-09-23 00:53:51 [wechatauto] [DEBUG] [db.py:1426]  WAL 合并第 3 次失败：FileNotFoundError(2, 'No such file or directory')
+2026-09-23 00:53:52 [wechatauto] [WARNING] [db.py:1430]  WAL 合并失败（微信持续写入），改用仅主库快照（可能缺少最近消息）: message\message_0.db
+2026-09-23 00:58:33 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 1/4 次）: message\message_0.db
+2026-09-23 00:58:33 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 1/4 次）: message\message_0.db
+2026-09-23 00:58:34 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 2/4 次）: message\message_0.db
+2026-09-23 00:58:34 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 2/4 次）: message\message_0.db
+2026-09-23 00:58:34 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 3/4 次）: message\message_0.db
+2026-09-23 00:58:35 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 3/4 次）: message\message_0.db
+2026-09-23 00:58:35 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 4/4 次）: message\message_0.db
+2026-09-23 00:58:36 [wechatauto] [WARNING] [db.py:1407]  主库持续处于撕裂状态，改用上一份可用副本（可能略旧）: message\message_0.db
+2026-09-23 00:58:36 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 4/4 次）: message\message_0.db
+2026-09-23 00:58:36 [wechatauto] [WARNING] [db.py:1407]  主库持续处于撕裂状态，改用上一份可用副本（可能略旧）: message\message_0.db
+2026-09-23 00:58:36 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 1/4 次）: message\message_0.db
+2026-09-23 00:58:37 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 1/4 次）: message\message_0.db
+2026-09-23 00:58:37 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 2/4 次）: message\message_0.db
+2026-09-23 00:58:38 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 2/4 次）: message\message_0.db
+2026-09-23 00:58:38 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 3/4 次）: message\message_0.db
+2026-09-23 00:58:39 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 3/4 次）: message\message_0.db
+2026-09-23 00:58:39 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 4/4 次）: message\message_0.db
+2026-09-23 00:58:39 [wechatauto] [WARNING] [db.py:1407]  主库持续处于撕裂状态，改用上一份可用副本（可能略旧）: message\message_0.db
+2026-09-23 00:58:43 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 1/4 次）: message\message_0.db
+2026-09-23 00:58:44 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 1/4 次）: message\message_0.db
+2026-09-23 00:58:44 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 2/4 次）: message\message_0.db
+2026-09-23 00:58:45 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 2/4 次）: message\message_0.db
+2026-09-23 00:58:45 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 3/4 次）: message\message_0.db
+2026-09-23 00:58:46 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 3/4 次）: message\message_0.db
+2026-09-23 00:58:46 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 4/4 次）: message\message_0.db
+2026-09-23 00:58:46 [wechatauto] [WARNING] [db.py:1407]  主库持续处于撕裂状态，改用上一份可用副本（可能略旧）: message\message_0.db
+2026-09-23 00:58:47 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 4/4 次）: message\message_0.db
+2026-09-23 00:58:47 [wechatauto] [WARNING] [db.py:1407]  主库持续处于撕裂状态，改用上一份可用副本（可能略旧）: message\message_0.db
+2026-09-23 00:58:47 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 1/4 次）: message\message_0.db
+2026-09-23 00:58:48 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 1/4 次）: message\message_0.db
+2026-09-23 00:58:48 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 2/4 次）: message\message_0.db
+2026-09-23 00:58:49 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 2/4 次）: message\message_0.db
+2026-09-23 00:58:49 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 3/4 次）: message\message_0.db
+2026-09-23 00:58:50 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 3/4 次）: message\message_0.db
+2026-09-23 00:58:50 [wechatauto] [DEBUG] [db.py:1403]  主库解密快照校验失败（第 4/4 次）: message\message_0.db
+2026-09-23 00:58:51 [wechatauto] [WARNING] [db.py:1407]  主库持续处于撕裂状态，改用上一份可用副本（可能略旧）: message\message_0.db
+2026-09-23 01:57:51 [wechatauto] [DEBUG] [guia.py:250]  WinInput 初始化，屏幕尺寸：1920x1080
+2026-09-23 01:57:53 [wechatauto] [INFO] [guia.py:730]  布局校准完成（portrait）：sidebar_ratio=1.000, send_button_ratio=[0.78, 0.92, 0.995, 0.99]
+2026-09-23 01:57:53 [wechatauto] [INFO] [guia.py:439]  WeChatGUI 初始化成功：hwnd=132852, render=67406, rect=(46, 32, 857, 1068)
+2026-09-23 01:58:10 [wechatauto] [INFO] [uia_driver.py:618]  热激活 UIA：PID=14828 Weixin.dll+0xae2b0c8: 0 -> 1
+2026-09-23 01:58:10 [wechatauto] [INFO] [uia_driver.py:624]  UIA 树已物化，已记录 gate RVA：Weixin.dll+0xae2b0c8
+2026-09-23 01:58:11 [wechatauto] [INFO] [guia.py:1286]  已启用 UIA 驱动（混合路径：UIA 优先，OCR 兜底）
