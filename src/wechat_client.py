@@ -5,8 +5,9 @@
 读取：采用 wechatauto 的本地数据库路线（WeChatDB + Listener）
       —— 按昵称精确反查会话 username、基于 sort_seq 增量监听新消息，
          消息内容取自数据库原文，并能通过 sender_id 区分对方与自己。
-发送：复用 wechatauto 的 UIA 快速发送（guia.quick_send + verify 回读确认），
-     不依赖固定像素坐标。
+发送：复用 wechatauto 的 UIA 快速发送（guia.WeChatGUI.send_msg），
+     不依赖固定像素坐标。GUI 实例在本类内复用，避免每次发送都重新
+     热激活 UIA 树；发送结果默认不做数据库回读校验（见 send_verify）。
 
 两条路线互相独立：读取不需要微信窗口在前台，只有发送才需要。
 """
@@ -36,6 +37,10 @@ WECHATAUTO_DIR = os.path.join(_PROJECT_ROOT, "wechatauto-replica-main")
 
 # 消息类型名：wechatauto 返回的是中文类型名，不是数字码
 MSG_TYPE_TEXT = "文本"
+
+# 内容回声比对窗口（秒）：探测不到自己 sender_id 时的兜底判定，
+# 窗口内收到与刚发出内容相同的消息，视为自己的消息回声
+ECHO_WINDOW = 30.0
 
 
 class WeChatClient:
@@ -75,6 +80,11 @@ class WeChatClient:
         self.rect = None
         self._win_w = 0
         self._win_h = 0
+        # 复用的 WeChatGUI 实例：quick_send() 每次新建会导致 UIA 反复热激活
+        self._gui = None
+        # 是否用数据库回读校验发送结果。默认关闭——数据库解密缓存重建耗时
+        # 10~40 秒，且 WAL 撕裂时读到的是旧快照，必然误报「发送失败」。
+        self.send_verify = bool(cfg.get("send_verify", False))
 
         pyautogui.FAILSAFE = False
         pyautogui.PAUSE = 0.05
@@ -99,13 +109,22 @@ class WeChatClient:
             print(f"✗ 无法导入 wechatauto（请确认目录存在: {WECHATAUTO_DIR}）: {e}")
             return False
 
-        try:
-            print("正在读取微信数据库（首次需扫描密钥，约 10 秒）...")
-            self.db = WeChatDB()
-        except Exception as e:
-            print(f"✗ 微信数据库初始化失败: {e}")
-            print("  请确认微信已登录，并尝试以管理员权限运行")
-            return False
+        # 微信未打开/未登录时 WeChatDB() 会失败；不直接退出，
+        # 循环等待用户打开并登录，检测到数据库可读后自动继续。
+        retry = 0
+        while True:
+            try:
+                print("正在读取微信数据库（首次需扫描密钥，约 10 秒）...")
+                self.db = WeChatDB()
+                break
+            except Exception as e:
+                retry += 1
+                if retry == 1:
+                    print(f"✗ 微信数据库初始化失败: {e}")
+                    print("  请打开微信并登录，检测到后自动继续（每 5 秒检测一次）...")
+                elif retry % 12 == 0:   # 每 60 秒再提醒一次，避免刷屏
+                    print(f"  ...仍在等待微信登录（已等待约 {retry * 5} 秒）")
+                time.sleep(5)
 
         info = self.db.get_self_info()
         print(f"✓ 微信数据库已就绪，账号: {info.get('nick_name') or info.get('username')}")
@@ -311,10 +330,45 @@ class WeChatClient:
             self._refresh_rect()
             print(f"✓ 微信窗口已激活: {self._win_w}x{self._win_h} "
                   f"@ ({self.rect[0]},{self.rect[1]})")
+
+            # 预热：首次创建 WeChatGUI 需要热激活 UIA 树（实测约 20 秒），
+            # 提前到这里完成，避免第一条消息被白白拖慢
+            self._prewarm_gui()
             return True
         except Exception as e:
             print(f"✗ 激活微信窗口失败: {e}")
             return False
+
+    def _prewarm_gui(self):
+        """启动时预热 GUI 与 UIA 驱动（失败不影响监听，发送时会自动重试）"""
+        t0 = time.time()
+        try:
+            gui = self._get_gui()
+            gui._get_uia()
+            print(f"✓ 发送通道预热完成（{time.time() - t0:.1f} 秒）")
+        except Exception as e:
+            print(f"[警告] 发送通道预热失败（不影响监听）: {e}")
+
+    def _get_gui(self):
+        """
+        获取复用的 WeChatGUI 实例
+
+        wechatauto 的 quick_send() 每次都新建 WeChatGUI，导致 UIA 树反复
+        热激活（实测约 20 秒/次）。这里缓存实例，同一进程只热激活一次；
+        微信重启后主窗口句柄失效时自动重建。
+        """
+        if self._gui is not None:
+            if ctypes.windll.user32.IsWindow(self._gui.main_hwnd):
+                return self._gui
+            print("[警告] 微信主窗口已失效，重建 GUI 实例")
+            self._gui = None
+
+        # 确保 wechatauto 源码目录已加入搜索路径
+        if os.path.isdir(WECHATAUTO_DIR) and WECHATAUTO_DIR not in sys.path:
+            sys.path.insert(0, WECHATAUTO_DIR)
+        from wechatauto.guia import WeChatGUI
+        self._gui = WeChatGUI()
+        return self._gui
 
     def _refresh_rect(self):
         """刷新缓存的窗口矩形"""
@@ -326,9 +380,9 @@ class WeChatClient:
 
     def send_message(self, chat_name, message):
         """
-        发送消息（复用 wechatauto 的 UIA 快速发送，附 verify 回读确认）
+        发送消息（复用 wechatauto 的 UIA 快速发送）
 
-        发音使用目标会话的 username（wxid），由 wechatauto 内部按控件定位，
+        发送使用目标会话的 username（wxid），由 wechatauto 内部按控件定位，
         不依赖固定像素坐标，避免微信窗口尺寸/位置变化导致发错或发不出。
 
         Args:
@@ -338,22 +392,21 @@ class WeChatClient:
         Returns:
             bool: 是否发送成功
         """
-        # 确保 wechatauto 源码目录已加入搜索路径
-        if os.path.isdir(WECHATAUTO_DIR) and WECHATAUTO_DIR not in sys.path:
-            sys.path.insert(0, WECHATAUTO_DIR)
         try:
-            from wechatauto.guia import quick_send
-        except ImportError as e:
-            print(f"[错误] 无法导入 wechatauto.guia 用于发送: {e}")
+            gui = self._get_gui()
+        except Exception as e:
+            print(f"[错误] 无法初始化 wechatauto.guia 用于发送: {e}")
             return False
 
         try:
             # 给待发送内容加识别前缀，供监听端区分"程序发出的消息"与"手发/对方消息"
             message = f"{self.self_prefix}{message}"
-            # chat_name(昵称) → username(wxid)，更稳定；找不到则直接传昵称
-            who = self._chat_ids.get(chat_name, chat_name)
+            # 直接传昵称：微信搜索框不认 wxid（wechatauto 自己的注释也写明了），
+            # 传 wxid 会让 open_chat 白试两轮约 8 秒；且 UIA 的 current_chat()
+            # 返回昵称，传昵称后会话复用判断才能命中，连续回复可跳过整个搜索定位。
+            who = chat_name
 
-            resp = quick_send(message, who=who, verify=True)
+            resp = gui.send_msg(message, who=who, verify=self.send_verify)
             ok = bool(resp) if resp is not None else False
             if ok:
                 print(f"[已发送] → {chat_name}")

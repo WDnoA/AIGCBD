@@ -162,17 +162,28 @@ async def main():
             chat_name, content, is_self = item
             await message_handler.handle_message(chat_name, content, is_self)
 
-    except KeyboardInterrupt:
-        print("\n\n系统已停止")
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        print("\n\n收到停止信号，正在退出...")
     except Exception as e:
         print(f"\n[错误] {e}")
         import traceback
         traceback.print_exc()
     finally:
-        wechat_client.stop()
-        # 关闭浏览器
-        await ai_client.close()
+        print("[退出] 正在停止消息监听...")
+        try:
+            wechat_client.stop()
+        except Exception as e:
+            print(f"[警告] 停止监听出错: {e}")
+        print("[退出] 正在关闭浏览器...")
+        try:
+            await ai_client.close()
+        except Exception as e:
+            print(f"[警告] 关闭浏览器出错: {e}")
+        print("[退出] 已安全退出，可以关闭窗口")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass

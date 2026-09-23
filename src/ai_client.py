@@ -157,9 +157,12 @@ class AIClient:
             speaker = ("我（自己发出的信息，不是对方发的）"
                        if actor == "assistant"
                        else "对方（我聊天对象发来的消息）")
-            # 拼入该会话最近的对话历史，让 AI 具备双方聊天的上下文
+            # 只有切换会话时才会刷新页面，刷新后 qwen 页面的上下文被清空，
+            # 需要把本地历史补进 prompt；同一会话内页面自己保留了上下文，
+            # 再拼一次属于重复投喂，只会拉长 prompt 拖慢首 token 生成。
+            switched = self._active_chat != chat_name
             history = self.chat_history.get(chat_name, [])
-            if history:
+            if history and switched:
                 ctx = "\n".join(
                     f"{'我' if m['role'] == 'assistant' else '对方（晓彤）'}：{m['content']}"
                     for m in history
@@ -171,7 +174,7 @@ class AIClient:
 
             # 切换到其他会话时刷新网页，清空 qwen 页面残留的历史，
             # 防止 AI 把上一会话的内容当成当前会话的上下文（回复串扰）
-            if self._active_chat != chat_name:
+            if switched:
                 try:
                     await self.page.goto(self.url, timeout=60000,
                                          wait_until="domcontentloaded")
@@ -180,23 +183,32 @@ class AIClient:
                 except Exception as e:
                     print(f"[警告] 切换会话刷新失败: {e}")
 
-            # 发送前记录已有回复数量，用于区分新回复
-            before = len(await self.page.query_selector_all(self.ASSISTANT_SEL))
+            # 最多尝试 2 次：偶发的 qwen 卡顿/跳转可用重试兜住；
+            # 对「。。。」这类 qwen 拒答的输入重试同样无果（会多等一轮），
+            # 属可接受的代价。
+            ai_reply = None
+            for attempt in range(2):
+                # 每次尝试前都重新取基准，避免上一次残留的回复数量干扰判定
+                before = len(await self.page.query_selector_all(self.ASSISTANT_SEL))
 
-            await self.page.click(self.INPUT_SEL)
-            await self.page.fill(self.INPUT_SEL, full_prompt)
-            await asyncio.sleep(0.3)
+                await self.page.click(self.INPUT_SEL)
+                await self.page.fill(self.INPUT_SEL, full_prompt)
+                await asyncio.sleep(0.3)
 
-            try:
-                await self.page.click(self.SEND_SEL, timeout=3000)
-            except Exception:
-                # 兜底：回车发送
-                await self.page.press(self.INPUT_SEL, "Enter")
-            print("[AI输入] 已发送提问")
+                try:
+                    await self.page.click(self.SEND_SEL, timeout=3000)
+                except Exception:
+                    # 兜底：回车发送
+                    await self.page.press(self.INPUT_SEL, "Enter")
+                print("[AI输入] 已发送提问" if attempt == 0
+                      else "[重试] 上次超时，重新发送提问")
 
-            ai_reply = await self._wait_reply(before)
+                ai_reply = await self._wait_reply(before)
+                if ai_reply:
+                    break
+
             if not ai_reply:
-                print("[错误] AI回复超时，本次不发送")
+                print("[错误] AI回复超时（已重试1次），本次不发送")
                 return None
 
             # 更新对话历史
@@ -243,7 +255,10 @@ class AIClient:
         last, stable = "", 0
 
         while time.time() < deadline:
-            await asyncio.sleep(1.2)
+            # 0.8 秒一次：判定需要连续两次读到相同文本，故固定开销约 1.6 秒。
+            # 再往小调（如 0.6）会把「流式输出中途卡顿」误判成生成结束，
+            # 导致只发出半截回复，不值得为省 0.4 秒冒这个险。
+            await asyncio.sleep(0.8)
 
             try:
                 msgs = await self.page.query_selector_all(self.ASSISTANT_SEL)
