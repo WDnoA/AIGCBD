@@ -148,7 +148,10 @@ class WeChatClient:
             print("✗ 没有任何可监听的会话")
             return False
 
-        self.listener = Listener(self.db, interval=self.poll_interval)
+        # 方案A：禁用监听水位持久化（watermark_file=""）。启动时 add_listener
+        # 会以「当前最新消息」作为水位，只处理启动后的新消息，避免上次非正常
+        # 退出（水位未落盘）后沿用旧水位重放历史消息。
+        self.listener = Listener(self.db, interval=self.poll_interval, watermark_file="")
         return True
 
     def _resolve_chat_id(self, name):

@@ -1,0 +1,16 @@
+# 忽略单个文件
+#secret.txt
+#config.json
+
+# 忽略某类文件
+# *.log
+# *.env
+# *.pyc
+
+# 忽略整个文件夹
+#config/
+wechatauto-replica-main/
+
+
+# 忽略特定路径
+# src/temp/
