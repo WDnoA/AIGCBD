@@ -87,6 +87,7 @@ async def main():
         return
 
     # 初始化组件
+    ai_client = None    # 预置，便于初始化异常时释放已启动的浏览器
     try:
         # 初始化AI客户端（网页自动化）
         ai_client = AIClient(config["ai"])
@@ -139,6 +140,13 @@ async def main():
         print(f"✗ 初始化失败: {e}")
         import traceback
         traceback.print_exc()
+        # 初始化中途失败也要释放浏览器：残留 chrome 会锁住 browser_profile，
+        # 导致下次启动报「Target page, context or browser has been closed」
+        if ai_client is not None:
+            try:
+                await ai_client.close()
+            except Exception:
+                pass
         return
 
     # 初始化发送所需的微信窗口（失败不影响消息监听）

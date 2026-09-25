@@ -62,7 +62,8 @@ class WeChatClient:
         self.input_click = cfg.get("input_click", [575, -114])   # 输入框，负值=距窗口底边
         self.send_key = cfg.get("send_key", "enter")
         # 自己发出的 AI 回复前缀（可通过 config.yaml 的 wechat.self_prefix 修改）
-        self.self_prefix = cfg.get("self_prefix", "贾维斯：")
+        # 空字符串会让 startswith() 恒为真、吞掉所有消息，必须回退到默认前缀
+        self.self_prefix = cfg.get("self_prefix") or "贾维斯："
 
         # 数据库读取
         self.poll_interval = cfg.get("poll_interval", 1.0)

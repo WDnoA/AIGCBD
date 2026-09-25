@@ -5,12 +5,17 @@
 # 忽略某类文件
 # *.log
 # *.env
-# *.pyc
+*.pyc
 
 # 忽略整个文件夹
 #config/
 wechatauto-replica-main/
+__pycache__/
 
+# 运行时产物（缓存/日志，体积大且每次运行都在变）
+data/browser_profile/
+data/logs/
+wechatauto_logs/
 
 # 忽略特定路径
 # src/temp/

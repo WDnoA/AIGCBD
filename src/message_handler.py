@@ -4,6 +4,8 @@
 负责处理消息逻辑
 """
 
+from ai_client import IGNORE_PLACEHOLDER
+
 
 class MessageHandler:
     """消息处理器"""
@@ -50,7 +52,7 @@ class MessageHandler:
                 actor="assistant" if is_self else "user"
             )
             # 自消息在第三方模式下由 AI 判断：返回 [忽略] 等占位则不外发
-            if is_self and (not ai_reply or ai_reply.strip() == "[忽略]"):
+            if is_self and (not ai_reply or ai_reply.strip() == IGNORE_PLACEHOLDER):
                 print("[跳过] AI 判断我的消息无需回复")
                 return
             if not ai_reply:

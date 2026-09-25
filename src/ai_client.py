@@ -18,6 +18,10 @@ import asyncio
 
 from playwright.async_api import async_playwright
 
+# AI 表示「不需要回复」的占位输出。这类回复不会真正发出，
+# 因此不能写入对话历史，否则切换会话时会被当作真实上下文投喂给 AI。
+IGNORE_PLACEHOLDER = "[忽略]"
+
 
 class AIClient:
     """AI客户端封装 - 通过网页自动化"""
@@ -214,7 +218,9 @@ class AIClient:
             # 更新对话历史
             history = self.chat_history.setdefault(chat_name, [])
             history.append({"role": actor, "content": user_message})
-            history.append({"role": "assistant", "content": ai_reply})
+            # 占位回复（如「[忽略]」）不会真正发出，只记录消息本身、不记录它
+            if ai_reply.strip() != IGNORE_PLACEHOLDER:
+                history.append({"role": "assistant", "content": ai_reply})
 
             # 只保留最近10轮对话
             if len(history) > 20:
