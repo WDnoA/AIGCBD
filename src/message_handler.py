@@ -64,8 +64,9 @@ class MessageHandler:
             reply_template = rule.get('reply_template', '{reply}')
             formatted_reply = reply_template.format(reply=ai_reply)
 
-            # 发送回复
-            self.wechat.send_message(chat_name, formatted_reply)
+            # 发送回复（opponent 模式不加前缀，对方看不到「贾维斯：」）
+            self.wechat.send_message(chat_name, formatted_reply,
+                                     add_prefix=rule.get("_mode", "third") == "third")
 
             # 转发到其他聊天（仅对方消息触发时转发）
             forward_to = rule.get('forward_to', []) if not is_self else []

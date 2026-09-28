@@ -254,15 +254,17 @@ class WeChatClient:
         # 带自识别前缀的消息是程序自己刚发出的 AI 回复，忽略，防止死循环
         if content.startswith(self.self_prefix):
             return
+        # 程序刚发出内容的回声：opponent 模式不加前缀，靠这里兜底过滤。
+        # AI 回复已在 get_response 里写入会话历史，这里必须丢弃，否则会
+        # 被当成"自己手发的消息"再记一次历史，造成上下文重复。
+        if time.time() - self._sent.get(content, 0) < ECHO_WINDOW:
+            return
         if self._self_id is not None and msg.get("sender_id") == self._self_id:
             # 自己手发的消息：入队（is_self=True），由 message_handler 按身份模式
             # 决定——opponent 模式只记上下文；third 模式由 AI 判断是否补回
             self._queue.put((chat_name, content, True))
             return
-        if self._self_id is None:
-            # 探测不到自己 sender_id 时的兜底：只能靠内容比对
-            if time.time() - self._sent.get(content, 0) < ECHO_WINDOW:
-                return
+        # 探测不到自己 sender_id 时的兜底已由上面的内容回声判定覆盖
         self._queue.put((chat_name, content, False))
 
     def add_chat(self, name):
@@ -382,7 +384,7 @@ class WeChatClient:
         self._win_w = rect.right - rect.left
         self._win_h = rect.bottom - rect.top
 
-    def send_message(self, chat_name, message):
+    def send_message(self, chat_name, message, add_prefix=True):
         """
         发送消息（复用 wechatauto 的 UIA 快速发送）
 
@@ -392,6 +394,9 @@ class WeChatClient:
         Args:
             chat_name: 目标聊天名称
             message: 消息内容
+            add_prefix: 是否给内容加自识别前缀。opponent（只回答聊天对象）
+                模式下传 False，避免对方看到「贾维斯：」；此时改由
+                _on_message 的 _sent 回声判定过滤自己发出的消息。
 
         Returns:
             bool: 是否发送成功
@@ -403,8 +408,10 @@ class WeChatClient:
             return False
 
         try:
-            # 给待发送内容加识别前缀，供监听端区分"程序发出的消息"与"手发/对方消息"
-            message = f"{self.self_prefix}{message}"
+            # 加识别前缀供监听端区分"程序发出的消息"与"手发/对方消息"；
+            # opponent 模式不加前缀，改由 _on_message 的回声判定过滤
+            if add_prefix:
+                message = f"{self.self_prefix}{message}"
             # 直接传昵称：微信搜索框不认 wxid（wechatauto 自己的注释也写明了），
             # 传 wxid 会让 open_chat 白试两轮约 8 秒；且 UIA 的 current_chat()
             # 返回昵称，传昵称后会话复用判断才能命中，连续回复可跳过整个搜索定位。

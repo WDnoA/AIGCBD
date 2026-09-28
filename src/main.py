@@ -14,7 +14,7 @@ from config_loader import load_config, validate_config
 from ai_client import AIClient
 from wechat_client import WeChatClient
 from message_handler import MessageHandler
-from identity_picker import choose_identity
+from identity_picker import choose_identities
 
 
 class _Tee:
@@ -107,11 +107,14 @@ async def main():
             return
         chat_names = [rule['chat_name'] for rule in chat_rules]
 
-        # 启动时为每个配置了双模式提示词的对象弹出身份选择窗
-        # 选中后将对应提示词写回 rule["prompt"]，handler/AI 无需感知模式
-        for rule in chat_rules:
-            if rule.get("prompt_third") and rule.get("prompt_opponent"):
-                mode = choose_identity(rule["chat_name"])
+        # 启动时用一个窗口为所有配置了双模式提示词的对象选身份模式，
+        # 选好后把对应提示词写回 rule["prompt"]，handler/AI 无需感知模式
+        dual_rules = [r for r in chat_rules
+                      if r.get("prompt_third") and r.get("prompt_opponent")]
+        if dual_rules:
+            modes = choose_identities([r["chat_name"] for r in dual_rules])
+            for rule in dual_rules:
+                mode = modes.get(rule["chat_name"], "third")
                 rule["prompt"] = (rule["prompt_third"] if mode == "third"
                                   else rule["prompt_opponent"])
                 rule["_mode"] = mode   # 记下身份模式，供运行时区分自消息处理
