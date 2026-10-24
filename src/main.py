@@ -89,14 +89,16 @@ async def main():
     # 初始化组件
     ai_client = None    # 预置，便于初始化异常时释放已启动的浏览器
     try:
-        # 初始化AI客户端（网页自动化）
+        # 初始化AI客户端（provider=openai 走本地接口；provider=web 走网页自动化）
         ai_client = AIClient(config["ai"])
-        print(f"✓ AI客户端初始化成功 (网页: {config['ai']['url']})")
-
-        # 初始化浏览器
-        print("正在启动浏览器...")
+        if ai_client.provider == "openai":
+            print(f"✓ AI客户端初始化成功 (接口: {ai_client.base_url}  模型: {ai_client.model})")
+            print("正在连接模型服务...")
+        else:
+            print(f"✓ AI客户端初始化成功 (网页: {config['ai'].get('url', '')})")
+            print("正在启动浏览器...")
         if not await ai_client.init_browser():
-            print("✗ 浏览器初始化失败")
+            print("✗ AI 后端初始化失败")
             return
 
         # 聊天规则

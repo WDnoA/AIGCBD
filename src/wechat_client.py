@@ -29,6 +29,8 @@ except Exception:
 
 import pyautogui  # noqa: E402
 
+from reliability import resolve_chat_id, collect_candidates
+
 SW_RESTORE = 9
 
 # wechatauto 源码目录（本地依赖，未发布到 PyPI）
@@ -86,6 +88,10 @@ class WeChatClient:
         # 是否用数据库回读校验发送结果。默认关闭——数据库解密缓存重建耗时
         # 10~40 秒，且 WAL 撕裂时读到的是旧快照，必然误报「发送失败」。
         self.send_verify = bool(cfg.get("send_verify", False))
+        # 发送重试次数（重试间隙 1 秒）与统计。之前 send_message 失败是静默的，
+        # 返回值没人用；现在失败会重试并累计，方便在日志里观察到「发不出去」。
+        self.send_retries = int(cfg.get("send_retries", 2) or 2)
+        self._fail_count = 0    # 连续发送失败次数（成功即清零）
 
         pyautogui.FAILSAFE = False
         pyautogui.PAUSE = 0.05
@@ -159,7 +165,8 @@ class WeChatClient:
         """
         把聊天名称解析为会话 username
 
-        优先按微信号/群 id 直接识别，其次通过昵称或备注模糊搜索。
+        优先按微信号/群 id 直接识别，其次按备注/昵称精确匹配；
+        多个模糊命中时不再取第一条，而是列出候选让人工介入（避免发错人）。
         匹配不到返回 None。
         """
         if name.startswith("wxid_") or "@chatroom" in name or name == "filehelper":
@@ -169,9 +176,15 @@ class WeChatClient:
         except Exception as e:
             print(f"  [警告] 查询联系人失败: {e}")
             return None
-        for hit in hits:
-            if hit.get("username"):
-                return hit["username"]
+
+        username = resolve_chat_id(name, hits)
+        if username:
+            return username
+        if len(hits) > 1:
+            print(f"✗ 「{name}」匹配到多个联系人，为避免发错人已停止解析：")
+            for line in collect_candidates(hits):
+                print(line)
+            print("  请把配置里的 chat_name 改成「备注全名」或直接填 wxid，再重启。")
         return None
 
     def start_listening(self):
@@ -417,15 +430,37 @@ class WeChatClient:
             # 返回昵称，传昵称后会话复用判断才能命中，连续回复可跳过整个搜索定位。
             who = chat_name
 
-            resp = gui.send_msg(message, who=who, verify=self.send_verify)
-            ok = bool(resp) if resp is not None else False
+            # 失败重试：UIA 发送偶发失败（窗口被抢焦点、控件一时未就绪），
+            # 重试一次往往就能成。多次失败会累计到 _fail_count，供主循环观测。
+            last_detail = ""
+            for attempt in range(self.send_retries + 1):
+                try:
+                    resp = gui.send_msg(message, who=who, verify=self.send_verify)
+                except Exception as e:
+                    last_detail = str(e)
+                    ok = False
+                else:
+                    ok = bool(resp) if resp is not None else False
+                    if not ok:
+                        last_detail = (resp.get("message")
+                                       if hasattr(resp, "get") else None) or str(resp)
+                if ok:
+                    break
+                if attempt < self.send_retries:
+                    print(f"[重试] 发送给「{chat_name}」失败（{last_detail}），"
+                          f"{attempt + 2}/{self.send_retries + 1}")
+                    time.sleep(1.0)
+
             if ok:
                 print(f"[已发送] → {chat_name}")
                 self._sent[message] = time.time()
+                self._fail_count = 0
             else:
-                detail = getattr(resp, 'message', None) or str(resp)
-                print(f"[错误] 发送给「{chat_name}」失败: {detail}")
+                self._fail_count += 1
+                print(f"[错误] 发送给「{chat_name}」连续 {self.send_retries + 1} 次失败: "
+                      f"{last_detail}")
             return ok
         except Exception as e:
+            self._fail_count += 1
             print(f"[错误] 发送消息失败: {e}")
             return False

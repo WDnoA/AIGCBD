@@ -41,8 +41,20 @@ def validate_config(config):
         return False
 
     ai_config = config["ai"]
-    if "url" not in ai_config:
-        print("错误: 请在配置文件中设置通义千问网页地址 (url)")
+    provider = (ai_config.get("provider") or "web").strip().lower()
+
+    if provider == "openai":
+        # 本地/远端 OpenAI 兼容接口：base_url 必须可解析，url 不再需要
+        if not ai_config.get("base_url"):
+            print("错误: provider=openai 时必须在配置文件中设置 base_url")
+            print("      例如: base_url: http://127.0.0.1:8080/v1")
+            return False
+    elif provider == "web":
+        if "url" not in ai_config:
+            print("错误: 请在配置文件中设置通义千问网页地址 (url)")
+            return False
+    else:
+        print(f"错误: 不支持的 ai.provider: {provider}（可选 openai / web）")
         return False
 
     # 检查聊天规则

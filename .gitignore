@@ -17,5 +17,8 @@ data/browser_profile/
 data/logs/
 wechatauto_logs/
 
+# 聊天记录（明文对话内容 + 联系人昵称，绝不能进公开仓库）
+data/history/
+
 # 忽略特定路径
 # src/temp/
