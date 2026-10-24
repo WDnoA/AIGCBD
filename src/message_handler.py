@@ -77,18 +77,24 @@ class MessageHandler:
             # 会话级提示词优先；自消息用 third 的双方人设
             prompt = rule.get("prompt")
 
-            # 自己发的消息怎么处理（默认 mention）：
-            #   mention 只有点名叫了助手才回，其余只记上下文 —— 老板正常聊天时
-            #           AI 不该在旁边抢话（这是真机踩过的坑：每句都插一句
-            #           「老板，…」，而且真的发到了对方窗口）
+            # 自己发的消息怎么处理（默认 dialogue）：
+            #   dialogue 对方最近没说话 → 你就是在跟 AI 单聊，直接回；
+            #            对方在场 → 只记上下文，绝不插嘴。两个场景自动切换，
+            #            不用来回改配置（这是默认档）
+            #   mention 只有点名叫了助手才回，其余只记上下文
             #   never   完全不回，只记上下文，连关键词都不看
             #   always  强制回复（用于「让它接我的话」的演示场景）
             #   auto    交给 AI 判断（9B 极不稳定，慎用）
             if is_self:
-                policy = (rule.get("self_reply") or "mention").strip().lower()
+                policy = (rule.get("self_reply") or "dialogue").strip().lower()
                 if policy == "never":
                     self.ai.add_history(chat_name, "assistant", content)
                     print("[跳过] self_reply=never：自己发的消息只记上下文，不触发回复")
+                    return
+                if policy == "dialogue" and not self._alone_with_ai(chat_name, rule):
+                    self.ai.add_history(chat_name, "assistant", content)
+                    print(f"[跳过] 对方在场，不插话（{chat_name} 最近有对方消息）；"
+                          f"想让它回，请点名「{self._mention_hint(rule)}」")
                     return
                 if policy in ("mention", "auto"):
                     keywords = rule.get("mention_keywords")
@@ -130,12 +136,22 @@ class MessageHandler:
             reply_template = rule.get('reply_template', '{reply}')
             formatted_reply = reply_template.format(reply=ai_reply)
 
-            # 发送回复（opponent 模式不加前缀，对方看不到「贾维斯：」）
+            # 回复发到哪：
+            #   · 默认（wechat.self_chat 留空）→ 一律回原会话。
+            #     第三方模式下贾维斯是这场聊天里独立存在的一员，它说的话
+            #     本来就该出现在聊天里、双方都能看到，这才是「第三方」。
+            #   · 显式配了 self_chat → 自己发消息触发的回复改发到那里，
+            #     只给自己看（私人参谋用法）。对方消息的回复不受影响。
+            target = chat_name
+            if is_self:
+                target = ((getattr(self.wechat, "self_chat", "") or "").strip()
+                          or chat_name)
+
             ok = self.wechat.send_message(
-                chat_name, formatted_reply,
+                target, formatted_reply,
                 add_prefix=rule.get("_mode", "third") == "third")
             if not ok:
-                print(f"[告警] 「{chat_name}」回复发送失败，本条已丢弃："
+                print(f"[告警] 「{target}」回复发送失败，本条已丢弃："
                       f"{ai_reply[:40]}")
 
             # 转发到其他聊天（仅对方消息触发时转发）
@@ -150,6 +166,37 @@ class MessageHandler:
             print(f"[错误] 处理消息失败: {e}")
             import traceback
             traceback.print_exc()
+
+    def _alone_with_ai(self, chat_name, rule):
+        """
+        判断「老板现在是在跟 AI 单聊」还是「在和真人聊天」
+
+        依据只有一条：最近 N 条消息里有没有对方发来的（历史里 role=user）。
+          · 没有 → 对方根本没参与这轮对话，老板发的消息就是给 AI 的
+          · 有   → 真人正在说话，AI 插一句就是抢话
+
+        为什么不用「AI 是否回过话」来判：历史里老板手发的和 AI 回的
+        都记成 assistant，区分不了；而「对方在不在场」这个信号本身
+        就足够可靠——真人不可能连续 12 条消息不吭声。
+        """
+        try:
+            window = int(rule.get("dialogue_window") or 12)
+        except (TypeError, ValueError):
+            window = 12
+        recent = (self.ai.chat_history.get(chat_name) or [])[-window:]
+        return not any(m.get("role") == "user" for m in recent)
+
+    @staticmethod
+    def _mention_hint(rule):
+        """提示语里用哪个召唤词（取配置的第一个关键词）"""
+        words = rule.get("mention_keywords") or []
+        if isinstance(words, (list, tuple)):
+            for w in words:
+                if w:
+                    return w
+        elif isinstance(words, str) and words.strip():
+            return words.strip()
+        return "贾维斯"
 
     def _find_chat_rule(self, chat_name):
         """查找匹配的聊天规则"""

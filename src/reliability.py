@@ -3,13 +3,13 @@
 可靠性工具：熔断、防重、精确匹配等纯逻辑
 
 这几个函数都是纯函数，不依赖外部 IO，方便写单元测试。
-它们对应优化建议里的 P0 项，把「会出错」的判定从散落的业务代码里抽出来。
+它们对应的都是「会出真事故」的判定，从散落的业务代码里抽出来单独可测。
 """
 import time
 
 
 # ---------------------------------------------------------------------------
-# 1. 电路熔断器（优化建议 #3：模型服务卡住会阻塞 120 秒）
+# 1. 电路熔断器（起因：模型服务卡住时不拒连、只不响应，会干等满 120 秒）
 # ---------------------------------------------------------------------------
 
 class CircuitBreaker:
@@ -55,12 +55,12 @@ class CircuitBreaker:
 
 
 # ---------------------------------------------------------------------------
-# 2. 发送防重（优化建议 #1：发送失败完全静默 -> 补上重试与失败计数）
+# 2. 发送防重（起因：发送失败完全静默，以为回了其实没发）
 # ---------------------------------------------------------------------------
 
 def resolve_chat_id(name, hits):
     """
-    从 search_contact 的结果里精确解析会话 username（优化建议 #4：模糊匹配发错人）
+    从 search_contact 的结果里精确解析会话 username（起因：模糊匹配取第一条会发错人）
 
     优先级：精确匹配备注 -> 精确匹配昵称 -> 唯一命中 -> 多个命中则返回 None（绝不猜）。
 
@@ -134,3 +134,36 @@ def is_mentioned(text, keywords=None):
     words = keywords if keywords is not None else DEFAULT_MENTION_KEYWORDS
     low = text.lower()
     return any(w and w.lower() in low for w in words)
+
+
+# ---------------------------------------------------------------------------
+# 4. 发出去的文本要不要带「贾维斯：」前缀
+# ---------------------------------------------------------------------------
+
+def compose_outgoing(message, add_prefix, show_prefix, prefix="贾维斯："):
+    """
+    拼出发出去的那条消息（是否加自识别前缀）
+
+    单独的纯函数，因为这段判断同时影响两件事，很容易改错一边：
+      · 加了前缀 → 对方看到「贾维斯：」，一眼就知道不是人打的
+      · 不加前缀 → 必须靠「回声判定」过滤自己发出的消息，否则 AI 会复读自己
+
+    Args:
+        message: AI 生成的正文
+        add_prefix: 调用方是否允许加前缀（third 模式为 True，opponent 为 False）
+        show_prefix: 配置 wechat.show_prefix，默认 False
+        prefix: 前缀文本
+
+    Returns:
+        str: 最终的发送内容
+
+    >>> compose_outgoing("在呢", True, False)
+    '在呢'
+    >>> compose_outgoing("在呢", True, True)
+    '贾维斯：在呢'
+    >>> compose_outgoing("在呢", False, True)
+    '在呢'
+    """
+    if add_prefix and show_prefix and message:
+        return f"{prefix}{message}"
+    return message

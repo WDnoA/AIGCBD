@@ -114,7 +114,66 @@ def clean_reply(text):
             if s.startswith(a) and s.endswith(b):
                 s = s[1:-1].strip()
                 changed = True
-    return s
+    return _join_lines(s)
+
+
+# 行尾已经是这些标点时，下一行直接接上；否则补个逗号，避免两句话糊在一起
+_PUNCT_END = tuple("。！？，、；：…~～.!?,;:")
+
+
+def _join_lines(text):
+    """
+    把多行回复压成一行
+
+    放开长度之后模型会偶尔输出两行（「在呢老板，正盯着对话框…」换行
+    「咋样，又遇到啥难缠的？」）。微信这边是整段粘贴再回车发送，
+    换行会在输入框里留成多行，观感像一段公告，也不像手打字。
+    压成一行后连逗号都不用改——行尾有标点就直连，没有才补逗号。
+    """
+    parts = [p.strip() for p in (text or "").splitlines() if p.strip()]
+    if len(parts) <= 1:
+        return parts[0] if parts else ""
+    out = parts[0]
+    for p in parts[1:]:
+        out += ("" if out.endswith(_PUNCT_END) else "，") + p
+    return out
+
+
+# 判断「两句是不是同一句」时忽略的字符：标点、空白、括号。
+# 模型换个句号就躲过精确比较，所以必须先归一化。
+_REPEAT_STRIP_RE = re.compile(
+    r"[\s，。！？、…~～,.!?;；:：\"'“”‘’（）()【】\[\]《》]"
+)
+
+
+def normalize_reply(text):
+    """只留字，去掉标点和空白"""
+    return _REPEAT_STRIP_RE.sub("", text or "")
+
+
+def is_repeated_reply(reply, history, window=8):
+    """
+    这句是不是和最近说过的某一句一模一样
+
+    本地小模型有个通病：情绪完全不同的两条消息，回的是同一句话。
+    实测 8 条覆盖不同语气的测试里，「宝宝，累了就歇会儿，我陪你」
+    出现了两次，分别对应「今天好累」和「算了，不说了」——一对比就露馅，
+    对方立刻知道这边不是人在打字。
+
+    Args:
+        reply: 本次生成的回复
+        history: 该会话的历史消息列表
+        window: 只跟最近多少条自己说过的话比
+
+    只比最近 window 条、归一化后要求**完全相等**，不做模糊匹配——
+    模糊匹配会把「嗯」「行吧」这类本来就会重复的短句全判成复读。
+    """
+    target = normalize_reply(reply)
+    if not target:
+        return False
+    recent = [normalize_reply(m.get("content") or "")
+              for m in (history or []) if m.get("role") == "assistant"]
+    return target in recent[-window:]
 
 
 class AIClient:
@@ -151,6 +210,21 @@ class AIClient:
                                  if ai_config.get("temperature") is not None else 0.7)
         self.top_p = float(ai_config.get("top_p")
                            if ai_config.get("top_p") is not None else 0.9)
+        # 采样多样性惩罚。本地小模型最明显的「机器味」不是用词差，
+        # 而是翻来覆去同一批句式：实测 8 条不同情绪的消息，
+        # 「宝宝，…我在呢」出现了 3 次，「累了就歇会儿我陪你」用在了
+        # 「好累」和「算了不说了」这两种完全不同的情绪上。
+        #   presence_penalty  按「这个词出现过」扣分，拉开句式选择
+        #   frequency_penalty 按出现次数累加扣分，压住口头禅刷屏
+        # 0.3 / 0.2 是实测值；加到 0.5 以上句子会开始前言不搭后语。
+        self.presence_penalty = float(ai_config.get("presence_penalty") or 0.0)
+        self.frequency_penalty = float(ai_config.get("frequency_penalty") or 0.0)
+        # 长尾截断。temperature 拉到 0.85 后句式活了，但也会偶尔「跑野」：
+        # 实测出现过回晓彤时提到「老板」、给老板想话时忘了称呼——这类不是文采问题，
+        # 是踩了硬规矩。top_k + min_p 正是干这个的：砍掉概率极低的候选词，
+        # 温度带来的多样性留在前 40 个候选里，长尾的胡话直接不进采样池。
+        self.top_k = int(ai_config.get("top_k") or 0)
+        self.min_p = float(ai_config.get("min_p") or 0.0)
         self.http_timeout = float(ai_config.get("http_timeout") or 30)
         # 思考型模型（如 Qwen3.5）会把 token 预算耗在思考过程上，
         # 导致 content 为空。自动回复场景不需要思考链，默认关闭。
@@ -458,6 +532,15 @@ class AIClient:
             "top_p": self.top_p,
             "stream": False,
         }
+        if self.presence_penalty:
+            payload["presence_penalty"] = self.presence_penalty
+        if self.frequency_penalty:
+            payload["frequency_penalty"] = self.frequency_penalty
+        if self.top_k:
+            # llama.cpp 的扩展采样参数（OpenAI 标准里没有，llama-server 认）
+            payload["top_k"] = self.top_k
+        if self.min_p:
+            payload["min_p"] = self.min_p
         if self.disable_thinking:
             # Qwen3.5 等思考型模型默认会把 max_tokens 全耗在思考链上，
             # 正文 content 直接为空。自动回复不需要思考过程，显式关掉。
@@ -516,17 +599,31 @@ class AIClient:
 
             reply = clean_reply(reply)
             bad = [w for w in (forbid_words or []) if w and w in reply]
-            if not bad:
+            repeat = is_repeated_reply(reply, self.chat_history.get(chat_name))
+            if not bad and not repeat:
                 break
-            print(f"[重试] 回复里误用了「{'、'.join(bad)}」，重新生成（{gen + 1}/2）")
+
+            if bad:
+                print(f"[重试] 回复里误用了「{'、'.join(bad)}」，重新生成（{gen + 1}/2）")
+            else:
+                print(f"[重试] 回复和前面说过的重复了，重新生成（{gen + 1}/2）")
             if gen == 1:
-                print("[放弃] 连续两次说话对象串了，本次不发送")
-                return None
+                if bad:
+                    print("[放弃] 连续两次说话对象串了，本次不发送")
+                    return None
+                # 只是重复：内容本身没错，发一句重复的也好过让对方干等
+                print("[警告] 两次都撞上重复回复，仍按本次结果发送")
+                break
             # 光靠重新采样常常还是错（历史里刚有一条「老板，…」把模型带偏了），
             # 第二次把硬约束直接贴到当前这条消息末尾，模型一定会看到。
+            hints = []
+            if bad:
+                hints.append(f"句中绝对不能出现「{'、'.join(bad)}」")
+            if repeat:
+                hints.append("换一种说法，不要和你前面说过的任何一句重复")
             payload["messages"][-1]["content"] += (
-                f"\n（提醒：上面这条是对方发来的，你要回的是对方本人，"
-                f"句中绝对不能出现「{'、'.join(bad)}」）")
+                f"\n（提醒：上面这条是对方发来的，你要回的是对方本人；"
+                + "；".join(hints) + "）")
 
         print(f"[AI回复] 生成完毕，长度: {len(reply)}")
 

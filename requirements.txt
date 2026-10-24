@@ -1,13 +1,16 @@
 # 微信AI自动回复系统依赖
+#
+# 安装：pip install -r requirements.txt
+# 或直接用一键脚本：install_deps.bat（会逐包自检并打印 [OK]/[MISS]）
 
-# 微信客户端发送（坐标点击 + 剪贴板粘贴）
+# ---- 本项目直接依赖 ----
 pyautogui>=0.9.54
 pyperclip>=1.8.2
+pyyaml>=6.0
 
-# 微信客户端读取（wechatauto 本地数据库路线）
+# ---- wechatauto 运行依赖（本地数据库读取 + UIA 发送）----
 #   注意：wechatauto-replica-main 是本地源码目录，未发布到 PyPI，
-#         代码以 sys.path 方式引入，无需 pip 安装；
-#         下面是它运行所需的第三方依赖
+#         代码以 sys.path 方式引入，无需 pip 安装；下面是它运行所需的第三方包
 cryptography>=41.0.0
 pywin32>=305
 zstandard>=0.19.0
@@ -15,12 +18,16 @@ psutil>=5.9.0
 Pillow>=10.0.0
 colorama>=0.4.6
 uiautomation>=2.0.18
-winsdk>=1.0.0b10
 opencv-python>=4.8.0
 pypinyin>=0.48.0
 
-# AI网页自动化
-playwright>=1.40.0
-
-# 配置解析
-pyyaml>=6.0
+# ---- 可选依赖（默认不用装）----
+#
+# winsdk：只在「坐标 + OCR」兜底路径里惰性导入，实测不装也能读库和发送。
+#         哪天报 No module named 'winsdk' 再装。它是 sdist，py3.13 上要现场
+#         编 C++，本机 pypi 只有 20~47 kB/s，会卡很久。
+# winsdk>=1.0.0b10
+#
+# playwright：只有 ai.provider = web（Playwright 操作 chat.qwen.ai 网页）时需要。
+#             本地 llama.cpp 模式走纯 HTTP，不需要它。
+# playwright>=1.40.0

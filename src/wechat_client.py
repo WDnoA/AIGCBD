@@ -29,7 +29,7 @@ except Exception:
 
 import pyautogui  # noqa: E402
 
-from reliability import resolve_chat_id, collect_candidates
+from reliability import resolve_chat_id, collect_candidates, compose_outgoing
 
 SW_RESTORE = 9
 
@@ -41,8 +41,17 @@ WECHATAUTO_DIR = os.path.join(_PROJECT_ROOT, "wechatauto-replica-main")
 MSG_TYPE_TEXT = "文本"
 
 # 内容回声比对窗口（秒）：探测不到自己 sender_id 时的兜底判定，
-# 窗口内收到与刚发出内容相同的消息，视为自己的消息回声
-ECHO_WINDOW = 30.0
+# 窗口内收到与刚发出内容相同的消息，视为自己的消息回声。
+#
+# 原来是 30 秒。之所以要放宽到 120：一旦关掉「贾维斯：」前缀（默认关），
+# 回声过滤就成了防死循环的唯一防线，30 秒在微信卡顿/电脑休眠唤醒后不够用，
+# 超时后读到自己刚发的回复会被当成「我手发的消息」再记一次历史，
+# 上下文就重复了。120 秒覆盖了所有正常的读库延迟。
+ECHO_WINDOW = 120.0
+
+# _sent 最多留多少条。不清理会随运行时长无限增长（每条回复一个键）。
+# 200 条足够覆盖 ECHO_WINDOW 内所有发送，超出的按插入顺序剔除最老的。
+SENT_MAX = 200
 
 
 class WeChatClient:
@@ -66,6 +75,17 @@ class WeChatClient:
         # 自己发出的 AI 回复前缀（可通过 config.yaml 的 wechat.self_prefix 修改）
         # 空字符串会让 startswith() 恒为真、吞掉所有消息，必须回退到默认前缀
         self.self_prefix = cfg.get("self_prefix") or "贾维斯："
+        # 是否真的把这个前缀加到消息里（对方能看到）。
+        # 默认 False：对方看到「贾维斯：谁又让你受委屈了」这种，一眼就知道
+        # 这边是机器，语气调得再好也白搭。前缀原本的唯一作用是让监听端
+        # 认出「这是程序发的」以防死循环，但 _sent 回声判定已经能做这件事，
+        # 而且更准确（比前缀还多覆盖了 opponent 模式）。
+        # 想恢复旧行为（对方能看到前缀）就设成 true。
+        self.show_prefix = bool(cfg.get("show_prefix", False))
+        # 自己发消息触发的回复发到哪个会话。默认留空 = 发回原会话，
+        # 第三方模式下贾维斯本来就在这个聊天里说话，双方都该看得到。
+        # 只有显式指定（如「文件传输助手」）才改成只给自己看。
+        self.self_chat = (cfg.get("self_chat") or "").strip()
 
         # 数据库读取
         self.poll_interval = cfg.get("poll_interval", 1.0)
@@ -421,10 +441,11 @@ class WeChatClient:
             return False
 
         try:
-            # 加识别前缀供监听端区分"程序发出的消息"与"手发/对方消息"；
-            # opponent 模式不加前缀，改由 _on_message 的回声判定过滤
-            if add_prefix:
-                message = f"{self.self_prefix}{message}"
+            # 是否加「贾维斯：」前缀由 wechat.show_prefix 决定（默认不加）。
+            # 加了对方就知道是机器；不加则靠 _on_message 的 _sent 回声判定
+            # 认出自己发的消息，同样能防死循环。
+            message = compose_outgoing(message, add_prefix,
+                                       self.show_prefix, self.self_prefix)
             # 直接传昵称：微信搜索框不认 wxid（wechatauto 自己的注释也写明了），
             # 传 wxid 会让 open_chat 白试两轮约 8 秒；且 UIA 的 current_chat()
             # 返回昵称，传昵称后会话复用判断才能命中，连续回复可跳过整个搜索定位。
@@ -454,6 +475,10 @@ class WeChatClient:
             if ok:
                 print(f"[已发送] → {chat_name}")
                 self._sent[message] = time.time()
+                # 不清理会随运行时长无限增长（每条回复一个键）
+                if len(self._sent) > SENT_MAX:
+                    for old in list(self._sent)[:len(self._sent) - SENT_MAX]:
+                        self._sent.pop(old, None)
                 self._fail_count = 0
             else:
                 self._fail_count += 1

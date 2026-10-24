@@ -1,42 +1,57 @@
 @echo off
-chcp 65001 >nul
+REM ============================================================
+REM  WeChat AI Bot - Restart
+REM
+REM  IMPORTANT: keep this file pure ASCII.
+REM  cmd.exe reads a .bat byte by byte using the OEM code page (936
+REM  on this machine) while the file is written in UTF-8. Any Chinese
+REM  character gets decoded into stray bytes, and a byte that lands on
+REM  a metacharacter (& | ^ >) is executed as a new command -- that is
+REM  exactly the "'??)' is not recognized" garbage you saw before.
+REM  "chcp 65001" cannot fix it: the code page changes mid-file and
+REM  every following byte offset is then misaligned.
+REM  So: English output only here. Chinese output lives in the .py
+REM  files, where Python encodes to the console code page itself.
+REM
+REM  Steps: stop every running main.py -> start a fresh one.
+REM ============================================================
 setlocal
 
-REM ============================================================
-REM  微信AI自动回复系统 - 一键重启
-REM  做三件事：停掉所有在跑的实例（含僵尸实例）→ 确认退干净 → 重新启动
-REM  若换机器，只需改下面 PROJ 和 PYTHON 两个变量
-REM ============================================================
-
-set "PROJ=e:\PYnowjj\AIDH"
-set "PYTHON=E:\ANACONDA3\envs\aids\python.exe"
-
-cd /d "%PROJ%"
-title 微信AI自动回复系统
-
-echo ============================================================
-echo   微信AI自动回复系统 - 一键重启
-echo ============================================================
-echo.
-echo [1/2] 停止正在运行的实例...
-
-REM 反复重试最多 12 次，避免上一次的进程还没退干净就启动下一个
-powershell -NoProfile -Command "$sig='*main.py*'; for($i=0;$i -lt 12;$i++){ $p=Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'python.exe' -and $_.CommandLine -like $sig }; if(-not $p){break}; $p | ForEach-Object { Write-Host ('      killed PID ' + $_.ProcessId); Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Start-Sleep -Milliseconds 800 }; $n=(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'python.exe' -and $_.CommandLine -like $sig } | Measure-Object).Count; if($n -eq 0){ Write-Host '      [OK] all old instances stopped' } else { Write-Host ('      [WARN] ' + $n + ' instance(s) still alive') }"
-
-echo.
-echo [2/2] 启动程序...
-echo.
+set "PROJ=%~dp0"
+if "%PROJ:~-1%"=="\" set "PROJ=%PROJ:~0,-1%"
+set "PYTHON=I:\Python313\python.exe"
 
 if not exist "%PYTHON%" (
-    echo [错误] 找不到 Python 解释器：%PYTHON%
-    echo        请修改本脚本顶部的 PYTHON 变量。
+    echo [ERROR] Python interpreter not found: %PYTHON%
+    echo         Edit the PYTHON variable at the top of this script.
     echo.
     pause
     exit /b 1
 )
 
+cd /d "%PROJ%"
+title WeChat AI Bot
+
+echo ============================================================
+echo   WeChat AI Bot - Restart
+echo ============================================================
+echo.
+echo [1/2] Stopping running instances...
+"%PYTHON%" "%PROJ%\tools\stop_instances.py"
+if errorlevel 1 (
+    echo.
+    echo [ERROR] Old instances are still alive, aborted.
+    echo         Two bots on one WeChat window will fight over messages.
+    echo.
+    pause
+    exit /b 1
+)
+
+echo.
+echo [2/2] Starting...
+echo.
 "%PYTHON%" "%PROJ%\src\main.py"
 
 echo.
-echo 程序已退出，按任意键关闭本窗口。
+echo Bot exited. Press any key to close this window.
 pause >nul
